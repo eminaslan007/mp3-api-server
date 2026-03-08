@@ -13,9 +13,13 @@ app.use(cors());
 const YTDLP_PATH = path.join(__dirname, 'yt-dlp');
 
 // Helper: run yt-dlp to get audio URL
+const COOKIES_PATH = path.join(__dirname, 'cookies.txt');
+
 function getAudioUrl(videoId) {
     return new Promise((resolve, reject) => {
-        const cmd = `"${YTDLP_PATH}" -f "ba[ext=m4a]/ba" --get-url --no-warnings --no-check-certificates "https://www.youtube.com/watch?v=${videoId}"`;
+        const fs = require('fs');
+        const cookiesFlag = fs.existsSync(COOKIES_PATH) ? `--cookies "${COOKIES_PATH}"` : '';
+        const cmd = `"${YTDLP_PATH}" -f "ba[ext=m4a]/ba" --get-url --no-warnings --no-check-certificates ${cookiesFlag} "https://www.youtube.com/watch?v=${videoId}"`;
         exec(cmd, { timeout: 30000 }, (error, stdout, stderr) => {
             if (error) {
                 reject(new Error(stderr || error.message));
