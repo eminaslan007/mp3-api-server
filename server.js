@@ -19,7 +19,7 @@ function getAudioUrl(videoId) {
     return new Promise((resolve, reject) => {
         const fs = require('fs');
         const cookiesFlag = fs.existsSync(COOKIES_PATH) ? `--cookies "${COOKIES_PATH}"` : '';
-        const cmd = `"${YTDLP_PATH}" -f "bestaudio" --get-url --no-warnings --no-check-certificates ${cookiesFlag} "https://www.youtube.com/watch?v=${videoId}"`;
+        const cmd = `"${YTDLP_PATH}" -f "ba/b" --get-url --no-warnings --no-check-certificates --extractor-args "youtube:player_client=mediaconnect" ${cookiesFlag} "https://www.youtube.com/watch?v=${videoId}"`;
         exec(cmd, { timeout: 30000 }, (error, stdout, stderr) => {
             if (error) {
                 reject(new Error(stderr || error.message));
@@ -45,7 +45,7 @@ app.get('/formats/:videoId', async (req, res) => {
     const videoId = req.params.videoId;
     const fs = require('fs');
     const cookiesFlag = fs.existsSync(COOKIES_PATH) ? `--cookies "${COOKIES_PATH}"` : '';
-    const cmd = `"${YTDLP_PATH}" --list-formats --no-warnings ${cookiesFlag} "https://www.youtube.com/watch?v=${videoId}"`;
+    const cmd = `"${YTDLP_PATH}" --list-formats --no-warnings --extractor-args "youtube:player_client=mediaconnect" ${cookiesFlag} "https://www.youtube.com/watch?v=${videoId}"`;
     exec(cmd, { timeout: 30000 }, (error, stdout, stderr) => {
         res.type('text/plain').send(stdout || stderr || error?.message || 'No output');
     });
