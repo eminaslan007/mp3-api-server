@@ -40,6 +40,17 @@ app.get('/', (req, res) => {
     res.json({ status: 'ok', service: 'MP3 API Server' });
 });
 
+// Debug: list available formats for a video
+app.get('/formats/:videoId', async (req, res) => {
+    const videoId = req.params.videoId;
+    const fs = require('fs');
+    const cookiesFlag = fs.existsSync(COOKIES_PATH) ? `--cookies "${COOKIES_PATH}"` : '';
+    const cmd = `"${YTDLP_PATH}" --list-formats --no-warnings ${cookiesFlag} "https://www.youtube.com/watch?v=${videoId}"`;
+    exec(cmd, { timeout: 30000 }, (error, stdout, stderr) => {
+        res.type('text/plain').send(stdout || stderr || error?.message || 'No output');
+    });
+});
+
 // Arama Endpoint
 app.get('/search', async (req, res) => {
     try {
