@@ -1,11 +1,11 @@
 {
     "name": "mp3-api-server",
     "version": "1.0.0",
-    "description": "YouTube MP3 Downloader API Server",
+    "description": "YouTube MP3 Downloader API Server (Piped)",
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
-        "build": "node setup-ytdlp.js"
+        "build": "echo 'No build step needed'"
     },
     "dependencies": {
         "cors": "^2.8.5",
