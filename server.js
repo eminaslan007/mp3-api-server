@@ -115,6 +115,60 @@ app.get('/trending', async (req, res) => {
     }
 });
 
+// YouTube Türkiye Top 50 Endpoint
+app.get('/top50', async (req, res) => {
+    try {
+        // YouTube Music Türkiye Top 100 playlist
+        const playlistId = 'PLDIoUOhQQPlXr63I_vwF9GD8sAKh77dWU';
+        const r = await yts({ listId: playlistId });
+
+        if (!r || !r.videos || r.videos.length === 0) {
+            // Fallback: search-based approach
+            const fallback = await yts('Türkiye Top 50 şarkılar 2025');
+            const videos = fallback.videos.slice(0, 50).map((v, i) => ({
+                id: v.videoId,
+                title: v.title,
+                thumbnail: v.image,
+                duration: v.seconds,
+                author: v.author.name,
+                views: v.views,
+                rank: i + 1,
+            }));
+            return res.json(videos);
+        }
+
+        const videos = r.videos.slice(0, 50).map((v, i) => ({
+            id: v.videoId,
+            title: v.title,
+            thumbnail: v.thumbnail || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`,
+            duration: v.duration?.seconds || v.seconds || 0,
+            author: v.author?.name || v.author || 'Bilinmiyor',
+            views: v.views || 0,
+            rank: i + 1,
+        }));
+
+        res.json(videos);
+    } catch (error) {
+        console.error('Top50 Error:', error);
+        // Fallback
+        try {
+            const fallback = await yts('Türkiye top 50 hit şarkılar 2025');
+            const videos = fallback.videos.slice(0, 50).map((v, i) => ({
+                id: v.videoId,
+                title: v.title,
+                thumbnail: v.image,
+                duration: v.seconds,
+                author: v.author.name,
+                views: v.views,
+                rank: i + 1,
+            }));
+            res.json(videos);
+        } catch (fallbackErr) {
+            res.status(500).json({ error: 'Failed to fetch top 50' });
+        }
+    }
+});
+
 // Stream — returns direct audio URL via Piped
 app.get('/stream/:videoId', async (req, res) => {
     try {
