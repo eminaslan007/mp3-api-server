@@ -54,7 +54,13 @@ async function getAudioUrl(videoId) {
 
             if (audioFormats.length > 0) {
                 console.log(`✅ Audio found via RapidAPI (${audioFormats[0].bitrate}bps)`);
-                return audioFormats[0].url;
+                return {
+                    url: audioFormats[0].url,
+                    title: data.title || 'Bilinmiyor',
+                    duration: parseInt(data.lengthSeconds || 0, 10),
+                    author: data.channelTitle || 'Bilinmiyor',
+                    thumbnailUrl: data.thumbnail && data.thumbnail[0] ? data.thumbnail[0].url : ''
+                };
             }
         }
 
@@ -67,7 +73,7 @@ async function getAudioUrl(videoId) {
 
 // Health check
 app.get('/', (req, res) => {
-    res.json({ status: 'ok', service: 'MP3 API Server (ytdl-core)', version: '1.0.2' });
+    res.json({ status: 'ok', service: 'MP3 API Server (RapidAPI)', version: '1.0.3' });
 });
 
 // Arama Endpoint
@@ -146,15 +152,14 @@ app.get('/stream/:videoId', async (req, res) => {
         const videoId = req.params.videoId;
         if (!videoId) return res.status(400).json({ error: 'Video ID is required' });
 
-        const audioUrl = await getAudioUrl(videoId);
-        const info = await yts({ videoId });
+        const audioData = await getAudioUrl(videoId);
 
         res.json({
-            url: audioUrl,
-            title: info.title || 'Bilinmiyor',
-            author: info.author?.name || 'Bilinmiyor',
-            duration: info.seconds || 0,
-            thumbnailUrl: info.image || ''
+            url: audioData.url,
+            title: audioData.title,
+            author: audioData.author,
+            duration: audioData.duration,
+            thumbnailUrl: audioData.thumbnailUrl
         });
     } catch (error) {
         console.error('Stream Error:', error.message || error);
@@ -168,7 +173,8 @@ app.get('/download/:videoId', async (req, res) => {
         const videoId = req.params.videoId;
         const title = req.query.title || videoId;
 
-        const audioUrl = await getAudioUrl(videoId);
+        const audioData = await getAudioUrl(videoId);
+        const audioUrl = audioData.url;
 
         const safeTitle = String(title).replace(/[^a-zA-Z0-9\s\-_]/g, '').substring(0, 80) || videoId;
         res.setHeader('Content-Type', 'audio/mp4');
