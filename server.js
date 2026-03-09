@@ -7,68 +7,29 @@ const http = require('http');
 const app = express();
 app.use(cors());
 
-// List of Piped API instances (fallback chain)
-const PIPED_INSTANCES = [
-    'https://pipedapi.kavin.rocks',
-    'https://pipedapi.adminforge.de',
-    'https://pipedapi.r4fo.com',
-    'https://pipedapi.moomoo.me',
-    'https://pipedapi.leptons.xyz',
-    'https://pipedapi.in.projectsegfau.lt',
-    'https://api.piped.yt',
-    'https://pipedapi.drgns.space',
-];
+const ytdl = require('@distube/ytdl-core');
 
-// Fetch JSON with native fetch (Node 18+, handles redirects)
-async function fetchJSON(url, timeoutMs = 15000) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-        const res = await fetch(url, {
-            signal: controller.signal,
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-        });
-        clearTimeout(timer);
-
-        const text = await res.text();
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}: ${text.substring(0, 200)}`);
-        }
-        return JSON.parse(text);
-    } catch (err) {
-        clearTimeout(timer);
-        throw err;
-    }
-}
-
-// Get audio URL from Piped instances (try each until one works)
+// Get direct audio URL from youtube using @distube/ytdl-core
 async function getAudioUrl(videoId) {
-    let lastError = null;
+    try {
+        const url = `https://www.youtube.com/watch?v=${videoId}`;
+        const info = await ytdl.getInfo(url);
 
-    for (const instance of PIPED_INSTANCES) {
-        try {
-            const data = await fetchJSON(`${instance}/streams/${videoId}`);
-
-            if (data.audioStreams && data.audioStreams.length > 0) {
-                // Sort by bitrate descending, pick best audio
-                const sorted = data.audioStreams
-                    .filter(s => s.mimeType && s.mimeType.includes('audio'))
-                    .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-
-                if (sorted.length > 0) {
-                    console.log(`✅ Audio found via ${instance} (${sorted[0].bitrate}bps)`);
-                    return sorted[0].url;
-                }
-            }
-            lastError = new Error('No audio streams in response');
-        } catch (err) {
-            lastError = err;
-            console.log(`⚠️ ${instance} failed: ${err.message}`);
+        let format = ytdl.chooseFormat(info.formats, { filter: 'audioonly', quality: 'highestaudio' });
+        if (!format) {
+            format = ytdl.chooseFormat(info.formats, { filter: 'audio' });
         }
-    }
 
-    throw lastError || new Error('All Piped instances failed');
+        if (format && format.url) {
+            console.log(`✅ Audio found for ${videoId} using ytdl-core`);
+            return format.url;
+        }
+
+        throw new Error('No audio format found');
+    } catch (error) {
+        console.error(`⚠️ ytdl-core failed for ${videoId}: ${error.message}`);
+        throw error;
+    }
 }
 
 // Health check
