@@ -7,28 +7,60 @@ const http = require('http');
 const app = express();
 app.use(cors());
 
-const ytdl = require('@distube/ytdl-core');
+// RapidAPI Configuration
+const RAPIDAPI_KEY = '0173422365mshf1348595d1df17fp1ad41djsnfe6b2c8edbdd';
+const RAPIDAPI_HOST = 'yt-api.p.rapidapi.com';
 
-// Get audio URL via ytdl-core (bypasses RapidAPI completely)
+// Fetch JSON with native fetch
+async function fetchJSON(url, options = {}, timeoutMs = 15000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const res = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+        });
+        clearTimeout(timer);
+
+        const text = await res.text();
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${text.substring(0, 200)}`);
+        }
+        return JSON.parse(text);
+    } catch (err) {
+        clearTimeout(timer);
+        throw err;
+    }
+}
+
+// Get audio URL via RapidAPI Engine
 async function getAudioUrl(videoId) {
     try {
-        console.log(`📡 Fetching stream for ${videoId} via ytdl-core...`);
-        const url = `https://www.youtube.com/watch?v=${videoId}`;
-        const info = await ytdl.getInfo(url);
+        console.log(`📡 Fetching stream for ${videoId} via RapidAPI...`);
+        const data = await fetchJSON(`https://${RAPIDAPI_HOST}/dl?id=${videoId}`, {
+            headers: {
+                'x-rapidapi-key': RAPIDAPI_KEY,
+                'x-rapidapi-host': RAPIDAPI_HOST
+            }
+        });
 
-        let format = ytdl.chooseFormat(info.formats, { filter: 'audioonly', quality: 'highestaudio' });
-        if (!format) {
-            format = ytdl.chooseFormat(info.formats, { filter: 'audio' });
+        if (data && data.adaptiveFormats && data.adaptiveFormats.length > 0) {
+            // Filter audio formats
+            const audioFormats = data.adaptiveFormats.filter(f => f.mimeType && f.mimeType.startsWith('audio/'));
+
+            // Sort by bitrate descending
+            audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+
+            if (audioFormats.length > 0) {
+                console.log(`✅ Audio found via RapidAPI (${audioFormats[0].bitrate}bps)`);
+                return audioFormats[0].url;
+            }
         }
 
-        if (format && format.url) {
-            console.log(`✅ Audio found via ytdl-core (${format.audioBitrate}kbps)`);
-            return format.url;
-        }
-
-        throw new Error('No audio formats found in ytdl-core response');
+        throw new Error('No audio formats found in RapidAPI response');
     } catch (err) {
-        console.log(`⚠️ ytdl-core failed: ${err.message}`);
+        console.log(`⚠️ RapidAPI failed: ${err.message}`);
         throw err;
     }
 }
