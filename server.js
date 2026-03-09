@@ -15,28 +15,27 @@ const PIPED_INSTANCES = [
     'https://pipedapi.moomoo.me',
 ];
 
-// Fetch with timeout
-function fetchJSON(url, timeoutMs = 15000) {
-    return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Timeout')), timeoutMs);
-        const protocol = url.startsWith('https') ? https : http;
+// Fetch JSON with native fetch (Node 18+, handles redirects)
+async function fetchJSON(url, timeoutMs = 15000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-        protocol.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
-            let data = '';
-            res.on('data', (chunk) => data += chunk);
-            res.on('end', () => {
-                clearTimeout(timer);
-                try {
-                    resolve(JSON.parse(data));
-                } catch (e) {
-                    reject(new Error('Invalid JSON'));
-                }
-            });
-        }).on('error', (err) => {
-            clearTimeout(timer);
-            reject(err);
+    try {
+        const res = await fetch(url, {
+            signal: controller.signal,
+            headers: { 'User-Agent': 'Mozilla/5.0' },
         });
-    });
+        clearTimeout(timer);
+
+        const text = await res.text();
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${text.substring(0, 200)}`);
+        }
+        return JSON.parse(text);
+    } catch (err) {
+        clearTimeout(timer);
+        throw err;
+    }
 }
 
 // Get audio URL from Piped instances (try each until one works)
