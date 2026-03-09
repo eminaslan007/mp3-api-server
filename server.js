@@ -7,67 +7,35 @@ const http = require('http');
 const app = express();
 app.use(cors());
 
-// RapidAPI Configuration
-const RAPIDAPI_KEY = '0173422365mshf1348595d1df17fp1ad41djsnfe6b2c8edbdd';
-const RAPIDAPI_HOST = 'yt-api.p.rapidapi.com';
+const ytdl = require('@distube/ytdl-core');
 
-// Fetch JSON with native fetch
-async function fetchJSON(url, options = {}, timeoutMs = 15000) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-        const res = await fetch(url, {
-            ...options,
-            signal: controller.signal,
-        });
-        clearTimeout(timer);
-
-        const text = await res.text();
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}: ${text.substring(0, 200)}`);
-        }
-        return JSON.parse(text);
-    } catch (err) {
-        clearTimeout(timer);
-        throw err;
-    }
-}
-
-// Get audio URL via RapidAPI
+// Get audio URL via ytdl-core (bypasses RapidAPI completely)
 async function getAudioUrl(videoId) {
     try {
-        console.log(`📡 Fetching stream for ${videoId} via RapidAPI...`);
-        const data = await fetchJSON(`https://${RAPIDAPI_HOST}/dl?id=${videoId}`, {
-            headers: {
-                'x-rapidapi-key': RAPIDAPI_KEY,
-                'x-rapidapi-host': RAPIDAPI_HOST
-            }
-        });
+        console.log(`📡 Fetching stream for ${videoId} via ytdl-core...`);
+        const url = `https://www.youtube.com/watch?v=${videoId}`;
+        const info = await ytdl.getInfo(url);
 
-        if (data && data.adaptiveFormats && data.adaptiveFormats.length > 0) {
-            // Filter audio formats
-            const audioFormats = data.adaptiveFormats.filter(f => f.mimeType && f.mimeType.startsWith('audio/'));
-
-            // Sort by bitrate descending
-            audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-
-            if (audioFormats.length > 0) {
-                console.log(`✅ Audio found via RapidAPI (${audioFormats[0].bitrate}bps)`);
-                return audioFormats[0].url;
-            }
+        let format = ytdl.chooseFormat(info.formats, { filter: 'audioonly', quality: 'highestaudio' });
+        if (!format) {
+            format = ytdl.chooseFormat(info.formats, { filter: 'audio' });
         }
 
-        throw new Error('No audio formats found in RapidAPI response');
+        if (format && format.url) {
+            console.log(`✅ Audio found via ytdl-core (${format.audioBitrate}kbps)`);
+            return format.url;
+        }
+
+        throw new Error('No audio formats found in ytdl-core response');
     } catch (err) {
-        console.log(`⚠️ RapidAPI failed: ${err.message}`);
+        console.log(`⚠️ ytdl-core failed: ${err.message}`);
         throw err;
     }
 }
 
 // Health check
 app.get('/', (req, res) => {
-    res.json({ status: 'ok', service: 'MP3 API Server (RapidAPI)', version: '1.0.1' });
+    res.json({ status: 'ok', service: 'MP3 API Server (ytdl-core)', version: '1.0.2' });
 });
 
 // Arama Endpoint
@@ -157,7 +125,7 @@ app.get('/stream/:videoId', async (req, res) => {
             thumbnailUrl: info.image || ''
         });
     } catch (error) {
-        console.error('Stream Error:', error);
+        console.error('Stream Error:', error.message || error);
         res.status(500).json({ error: 'Failed to get stream info', message: error?.message || String(error) });
     }
 });
@@ -196,5 +164,5 @@ app.get('/download/:videoId', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 MP3 API Server running on port ${PORT}`);
-    console.log(`📡 Using RapidAPI configured stream engine`);
+    console.log(`📡 Using ytdl-core configured stream engine`);
 });
