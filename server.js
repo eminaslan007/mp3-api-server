@@ -67,7 +67,7 @@ async function getAudioUrl(videoId) {
 
 // Health check
 app.get('/', (req, res) => {
-    res.json({ status: 'ok', service: 'MP3 API Server (Piped)' });
+    res.json({ status: 'ok', service: 'MP3 API Server (RapidAPI)', version: '1.0.1' });
 });
 
 // Arama Endpoint
@@ -157,8 +157,8 @@ app.get('/stream/:videoId', async (req, res) => {
             thumbnailUrl: info.image || ''
         });
     } catch (error) {
-        console.error('Stream Error:', error.message);
-        res.status(500).json({ error: 'Failed to get stream info', message: error.message });
+        console.error('Stream Error:', error);
+        res.status(500).json({ error: 'Failed to get stream info', message: error?.message || String(error) });
     }
 });
 
