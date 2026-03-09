@@ -118,54 +118,49 @@ app.get('/trending', async (req, res) => {
 // YouTube Türkiye Top 50 Endpoint
 app.get('/top50', async (req, res) => {
     try {
-        // YouTube Music Türkiye Top 100 playlist
-        const playlistId = 'PLDIoUOhQQPlXr63I_vwF9GD8sAKh77dWU';
-        const r = await yts({ listId: playlistId });
+        const queries = [
+            '2025 en çok dinlenen türkçe pop şarkılar',
+            'türkçe hit şarkılar 2025 popüler',
+            'en çok dinlenen türkçe şarkılar bu hafta',
+        ];
 
-        if (!r || !r.videos || r.videos.length === 0) {
-            // Fallback: search-based approach
-            const fallback = await yts('Türkiye Top 50 şarkılar 2025');
-            const videos = fallback.videos.slice(0, 50).map((v, i) => ({
-                id: v.videoId,
-                title: v.title,
-                thumbnail: v.image,
-                duration: v.seconds,
-                author: v.author.name,
-                views: v.views,
-                rank: i + 1,
-            }));
-            return res.json(videos);
+        const allVideos = [];
+        const seenIds = new Set();
+
+        for (const query of queries) {
+            try {
+                const r = await yts(query);
+                if (r && r.videos) {
+                    for (const v of r.videos) {
+                        if (!seenIds.has(v.videoId) && v.seconds > 60 && v.seconds < 600) {
+                            seenIds.add(v.videoId);
+                            allVideos.push({
+                                id: v.videoId,
+                                title: v.title,
+                                thumbnail: v.image,
+                                duration: v.seconds,
+                                author: v.author.name,
+                                views: v.views,
+                            });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.log(`Query failed: ${query}`, err.message);
+            }
         }
 
-        const videos = r.videos.slice(0, 50).map((v, i) => ({
-            id: v.videoId,
-            title: v.title,
-            thumbnail: v.thumbnail || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`,
-            duration: v.duration?.seconds || v.seconds || 0,
-            author: v.author?.name || v.author || 'Bilinmiyor',
-            views: v.views || 0,
+        // Sort by views descending and take top 50
+        allVideos.sort((a, b) => (b.views || 0) - (a.views || 0));
+        const top50 = allVideos.slice(0, 50).map((v, i) => ({
+            ...v,
             rank: i + 1,
         }));
 
-        res.json(videos);
+        res.json(top50);
     } catch (error) {
         console.error('Top50 Error:', error);
-        // Fallback
-        try {
-            const fallback = await yts('Türkiye top 50 hit şarkılar 2025');
-            const videos = fallback.videos.slice(0, 50).map((v, i) => ({
-                id: v.videoId,
-                title: v.title,
-                thumbnail: v.image,
-                duration: v.seconds,
-                author: v.author.name,
-                views: v.views,
-                rank: i + 1,
-            }));
-            res.json(videos);
-        } catch (fallbackErr) {
-            res.status(500).json({ error: 'Failed to fetch top 50' });
-        }
+        res.status(500).json({ error: 'Failed to fetch top 50' });
     }
 });
 
