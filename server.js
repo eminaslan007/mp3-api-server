@@ -13,6 +13,10 @@ const PIPED_INSTANCES = [
     'https://pipedapi.adminforge.de',
     'https://pipedapi.r4fo.com',
     'https://pipedapi.moomoo.me',
+    'https://pipedapi.leptons.xyz',
+    'https://pipedapi.in.projectsegfau.lt',
+    'https://api.piped.yt',
+    'https://pipedapi.drgns.space',
 ];
 
 // Fetch JSON with native fetch (Node 18+, handles redirects)
