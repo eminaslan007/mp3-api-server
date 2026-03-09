@@ -163,5 +163,5 @@ app.get('/download/:videoId', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 MP3 API Server running on port ${PORT}`);
-    console.log(`📡 Using Piped instances: ${PIPED_INSTANCES.length} configured`);
+    console.log(`📡 Using ytdl-core for stream extraction`);
 });
