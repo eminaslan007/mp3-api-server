@@ -118,46 +118,24 @@ app.get('/trending', async (req, res) => {
 // YouTube Türkiye Top 50 Endpoint
 app.get('/top50', async (req, res) => {
     try {
-        const queries = [
-            '2025 en çok dinlenen türkçe pop şarkılar',
-            'türkçe hit şarkılar 2025 popüler',
-            'en çok dinlenen türkçe şarkılar bu hafta',
-        ];
+        const playlistId = 'PL4fGSI1pDJn6rnJKpaAkK1XK8QUfa9KqP';
+        const r = await yts({ listId: playlistId });
 
-        const allVideos = [];
-        const seenIds = new Set();
-
-        for (const query of queries) {
-            try {
-                const r = await yts(query);
-                if (r && r.videos) {
-                    for (const v of r.videos) {
-                        if (!seenIds.has(v.videoId) && v.seconds > 60 && v.seconds < 600) {
-                            seenIds.add(v.videoId);
-                            allVideos.push({
-                                id: v.videoId,
-                                title: v.title,
-                                thumbnail: v.image,
-                                duration: v.seconds,
-                                author: v.author.name,
-                                views: v.views,
-                            });
-                        }
-                    }
-                }
-            } catch (err) {
-                console.log(`Query failed: ${query}`, err.message);
-            }
+        if (!r || !r.videos || r.videos.length === 0) {
+            return res.status(500).json({ error: 'Playlist boş veya bulunamadı' });
         }
 
-        // Sort by views descending and take top 50
-        allVideos.sort((a, b) => (b.views || 0) - (a.views || 0));
-        const top50 = allVideos.slice(0, 50).map((v, i) => ({
-            ...v,
+        const videos = r.videos.slice(0, 50).map((v, i) => ({
+            id: v.videoId,
+            title: v.title,
+            thumbnail: v.thumbnail || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`,
+            duration: v.duration ? v.duration.seconds : (v.seconds || 0),
+            author: v.author ? (v.author.name || v.author) : 'Bilinmiyor',
+            views: v.views || 0,
             rank: i + 1,
         }));
 
-        res.json(top50);
+        res.json(videos);
     } catch (error) {
         console.error('Top50 Error:', error);
         res.status(500).json({ error: 'Failed to fetch top 50' });
